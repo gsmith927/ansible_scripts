@@ -1,0 +1,56 @@
+---
+
+- name: Network Getting Started First Playbook
+  gather_facts: no
+  hosts: cisco_ios
+  connection: network_cli
+ 
+#  vars:
+#    syslogserver1: none
+#    syslogserver2: none
+#  log_path = ./something.log
+
+  tasks:
+
+  - name: Show Run on Device
+    ios_command:
+      commands:
+        - show run | i logging 192.168.1.1
+        - show run | i logging host 192.168.1.1
+    register: config
+
+  - debug: var=config.stdout[0]
+
+  - name: get current configured syslog servers
+    set_fact: syslogserver1="{{ config.stdout[0] | regex_findall('(logging host 192.168.1.1)', multiline=True) }}"
+
+  - name: get current configured syslog servers2
+    set_fact: syslogserver2="{{ config.stdout[0] | regex_findall('(logging 192.168.1.1)', multiline=True) }}"
+
+  - debug: var=syslogserver1
+  - debug: var=syslogserver2
+
+
+  - name: configure template
+    template:
+      src: sysconfig.j2
+      dest: sysconfigoutput.txt
+
+  - name: configure new logging server
+    ios_config:
+      src: sysconfigoutput.txt
+    register: config3
+
+  - debug: var=config3
+
+
+  - copy: content="{{config3}}" dest=./cmd_ouput.txt
+
+  - name: save output
+    blockinfile:
+      create: yes
+      dest: ./cmd_output2.txt"
+      block: |
+        {{ config3.commands }}
+
+ 
